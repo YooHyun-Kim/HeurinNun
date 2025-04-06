@@ -1,9 +1,9 @@
-# HeurinNun
+# document_grading
 
 <a href="https://github.com/YooHyun-Kim/HeurinNun/blob/main/README_ko.md">한국어</a>
 
 ## Project Description
-The "HeurinNun" project is part of an initiative for automatic document security classification. When a document requiring security grading is uploaded, the system will determine an appropriate classification based on its importance and risk level. Currently, the project is being developed in the technology and insurance sectors, with plans to expand into a broader range of fields in the future. Any feedback for improvement is always welcome.
+The "document_grading" project is part of an initiative for automatic document security classification. When a document requiring security grading is uploaded, the system will determine an appropriate classification based on its importance and risk level. Currently, the project is being developed in the technology and insurance sectors, with plans to expand into a broader range of fields in the future. Any feedback for improvement is always welcome.
 
 ## Table of Contents
 1. [Features](#features)
