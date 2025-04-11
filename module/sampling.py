@@ -12,7 +12,7 @@ def structure_based_sampling(pdf_path, num_pages=40):
         # 페이지 수가 num_pages보다 적으면 전체 페이지를 그대로 사용
         if total_pages < num_pages:
             print(f"PDF 파일의 페이지 수가 {num_pages} 페이지 미만이므로 전체 페이지를 사용합니다.")
-            sampled_page_numbers = list(range(1, total_pages + 1))  # 전체 페이지 번호 사용
+            sampled_page_numbers = list(range(total_pages))  # 전체 페이지 번호 사용
             sampled_pages = [pdf.pages[i-1].extract_text() or "" for i in sampled_page_numbers]
         else:
             page_scores = []  # 페이지별 중요도 점수 저장
