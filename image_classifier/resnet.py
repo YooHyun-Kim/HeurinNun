@@ -5,15 +5,13 @@ import torchvision.transforms as transforms
 from PIL import Image
 
 
-def build_resnet(feature_only=False):
-    """
-    ResNet50 기반 분류기 생성. feature_only=True인 경우, 마지막 fc layer 제거.
-    """
+def build_resnet(num_classes=5, feature_only=False):
     model = models.resnet50(pretrained=True)
     if feature_only:
-        model = nn.Sequential(*list(model.children())[:-1])  # avgpool까지 출력
+        model = nn.Sequential(*list(model.children())[:-1])
     else:
-        model.fc = nn.Identity()  # fc 없애고 feature vector로 사용 가능
+        in_features = model.fc.in_features
+        model.fc = nn.Linear(in_features, num_classes)
     return model
 
 
@@ -27,7 +25,6 @@ def preprocess_image(img):  # PIL.Image.Image
         )
     ])
     return transform(img).unsqueeze(0)  # (1, C, H, W)
-
 
 
 def get_image_features(img_tensor, model, device="cpu"):
