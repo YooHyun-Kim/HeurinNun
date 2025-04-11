@@ -60,6 +60,8 @@ base_prompt = """
 
 문서:
 \"\"\"{doc_text}\"\"\"
+\"\"\"문서 내 포함 이미지: {img_text}\"\"\"
+
 
 보안등급 및 이유:
 """
@@ -75,12 +77,13 @@ def run_inference(input_path="document.jsonl", output_path="output_results_jsonl
             data = json.loads(line)
             doc_text = data.get("text", "").strip()
             page_num = data.get("page", None)
-            
-            if not doc_text or page_num is None:
-                print("⚠️ 입력 데이터에 'text' 또는 'page'가 누락되었습니다. 건너뜁니다.")
+            img_text = data.get("image", "").strip()
+
+            if not doc_text or page_num is None or img_text is None:
+                print("⚠️ 입력 데이터에 'text', 'img_text' 또는 'page'가 누락되었습니다. 건너뜁니다.")
                 continue
 
-            prompt = base_prompt.format(doc_text=doc_text)
+            prompt = base_prompt.format(doc_text=doc_text , img_text=img_text)
 
             inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
             input_length = inputs.input_ids.shape[1]
