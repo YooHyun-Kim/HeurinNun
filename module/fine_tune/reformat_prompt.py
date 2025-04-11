@@ -1,7 +1,8 @@
 import json
 
 # 기준 설명 프롬프트 템플릿
-base_prompt = """다음은 기술 분야의 보안등급 분류 기준입니다:
+base_prompt = """
+다음은 기술 분야의 보안등급 분류 기준입니다:
 
 1급: 기술정보(연구, 부품, 설계도, 장비, 디자인 요소), 개인정보, 거래 납품 리스트(예: 제조 기술 명시 등), 특정 단어(기밀유지, 보안관리 등)가 포함된 민감한 문서
 
@@ -17,6 +18,7 @@ base_prompt = """다음은 기술 분야의 보안등급 분류 기준입니다:
 - 1급 요소가 단 하나라도 포함되어 있다면 해당 문서는 반드시 1급으로 분류합니다.
 - 1급이 없고 2급과 3급 요소가 함께 포함된 경우에는 2급으로 분류합니다.
 - 단일 등급 정보만 포함된 경우에는 해당 등급으로 분류합니다.
+- 아래에 제시된 "문서 내 포함 이미지 내용" 외에는 별도 이미지가 없으며, 해당 항목만 시각 정보로 간주합니다.
 
 ---
 
@@ -24,8 +26,12 @@ base_prompt = """다음은 기술 분야의 보안등급 분류 기준입니다:
 
 문서:
 \"\"\"{doc_text}\"\"\"
+문서 내 포함 이미지 내용 (디바이스, 회로도, 흐름도 등 해당 페이지의 이미지에서 추출된 시각 정보입니다):
+\"\"\"{img_text}\"\"\"
 
-보안등급 및 이유:"""
+보안등급 및 이유:
+"""
+
 
 # 파일 경로 설정
 input_file = "data/train.jsonl"
@@ -34,13 +40,20 @@ output_file = "data/train_reformatted.jsonl"
 with open(input_file, "r", encoding="utf-8") as f_in, open(output_file, "w", encoding="utf-8") as f_out:
     for line in f_in:
         data = json.loads(line)
-        # 기존 짧은 프롬프트에서 문서 텍스트 추출
+
+        # 텍스트 추출
         if data["prompt"].startswith("문서:"):
             doc_text = data["prompt"].split("문서:")[1].split("\n")[0].strip()
         else:
             doc_text = data["prompt"].strip()
-        # 새로운 포맷으로 구성
-        new_prompt = base_prompt.format(doc_text=doc_text)
+
+        # 이미지 내용 추출 (없을 경우 없다고 명시)
+        img_text = data.get("image", "문서 내 이미지 없음").strip()
+
+        # 프롬프트 포맷 재구성
+        new_prompt = base_prompt.format(doc_text=doc_text, img_text=img_text)
+
+        # 새 JSON 구조 저장
         new_data = {
             "prompt": new_prompt,
             "response": data["response"]
