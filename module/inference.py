@@ -53,6 +53,7 @@ base_prompt = """
 - 1급 요소가 단 하나라도 포함되어 있다면 해당 문서는 반드시 1급으로 분류합니다.
 - 1급이 없고 2급과 3급 요소가 함께 포함된 경우에는 2급으로 분류합니다.
 - 단일 등급 정보만 포함된 경우에는 해당 등급으로 분류합니다.
+- 아래에 제시된 "문서 내 포함 이미지 내용" 외에는 별도 이미지가 없으며, 해당 항목만 시각 정보로 간주합니다.
 
 ---
 
@@ -60,11 +61,12 @@ base_prompt = """
 
 문서:
 \"\"\"{doc_text}\"\"\"
-\"\"\"문서 내 포함 이미지: {img_text}\"\"\"
-
+문서 내 포함 이미지 내용 (디바이스, 회로도, 흐름도 등 해당 페이지의 이미지에서 추출된 시각 정보입니다):
+\"\"\"{img_text}\"\"\"
 
 보안등급 및 이유:
 """
+
 
 # 메인 인퍼런스 함수
 def run_inference(input_path="document.jsonl", output_path="output_results_jsonlver.jsonl", model_path="fine_tune/checkpoints/finetuned_gemma_qlora"):
@@ -79,8 +81,8 @@ def run_inference(input_path="document.jsonl", output_path="output_results_jsonl
             page_num = data.get("page", None)
             img_text = data.get("image", "").strip()
 
-            if not doc_text or page_num is None or img_text is None:
-                print("⚠️ 입력 데이터에 'text', 'img_text' 또는 'page'가 누락되었습니다. 건너뜁니다.")
+            if not doc_text or page_num is None :
+                print("⚠️ 입력 데이터에 'text' 또는 'page'가 누락되었습니다. 건너뜁니다.")
                 continue
 
             prompt = base_prompt.format(doc_text=doc_text , img_text=img_text)
