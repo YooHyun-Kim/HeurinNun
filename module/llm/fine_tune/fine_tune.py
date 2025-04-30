@@ -26,7 +26,7 @@ model = AutoModelForCausalLM.from_pretrained(
 
 # 3. LoRA 설정
 peft_config = LoraConfig(
-    r=8,
+    r=16,
     lora_alpha=16,
     target_modules=["q_proj", "v_proj"],
     lora_dropout=0.05,
@@ -34,7 +34,7 @@ peft_config = LoraConfig(
     task_type=TaskType.CAUSAL_LM
 )
 model = get_peft_model(model, peft_config)
-
+model.print_trainable_parameters()
 # 4. 데이터셋 로드
 dataset = load_dataset("json", data_files={"train": "data/train_reformatted.jsonl"})["train"]
 
@@ -71,5 +71,7 @@ trainer = Trainer(
 trainer.train()
 
 # 8. 저장
-model.save_pretrained("./checkpoints/finetuned_gemma_qlora")
+# adapter만 저장 (정확한 방식)
+model.save_pretrained("./checkpoints/finetuned_gemma_qlora", save_adapter=True)
+
 tokenizer.save_pretrained("./checkpoints/finetuned_gemma_qlora")
