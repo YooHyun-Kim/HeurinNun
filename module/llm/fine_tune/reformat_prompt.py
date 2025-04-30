@@ -1,6 +1,5 @@
 import json
 
-# 기준 설명 프롬프트 템플릿
 base_prompt = """
 다음은 기술 분야의 보안등급 분류 기준입니다:
 
@@ -32,8 +31,7 @@ base_prompt = """
 보안등급 및 이유:
 """
 
-
-# 파일 경로 설정
+# 변환 실행
 input_file = "data/train.jsonl"
 output_file = "data/train_reformatted.jsonl"
 
@@ -47,13 +45,17 @@ with open(input_file, "r", encoding="utf-8") as f_in, open(output_file, "w", enc
         else:
             doc_text = data["prompt"].strip()
 
-        # 이미지 내용 추출 (없을 경우 없다고 명시)
-        img_text = data.get("image", "문서 내 이미지 없음").strip()
+        # 이미지 리스트 처리
+        img_list = data.get("image", [])
+        if isinstance(img_list, list):
+            img_text = ", ".join(img_list) if img_list else "문서 내 이미지 없음"
+        else:
+            img_text = str(img_list)
 
-        # 프롬프트 포맷 재구성
+        # 프롬프트 구성
         new_prompt = base_prompt.format(doc_text=doc_text, img_text=img_text)
 
-        # 새 JSON 구조 저장
+        # 저장
         new_data = {
             "prompt": new_prompt,
             "response": data["response"]

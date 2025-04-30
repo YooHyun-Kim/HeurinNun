@@ -1,25 +1,53 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from peft import PeftModel, LoraConfig, get_peft_model, prepare_model_for_kbit_training
 import torch
 import re
 import json
+from pathlib import Path
 
-# 모델 로딩을 함수로 분리
-def load_model(model_path="fine_tune/checkpoints/finetuned_gemma_qlora"):
+
+def load_model(model_path):
+    model_path = Path(model_path).resolve()
+    base_model_id = "recoilme/recoilme-gemma-2-9B-v0.4"
+
     quant_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_use_double_quant=True,
         bnb_4bit_quant_type="nf4",
         bnb_4bit_compute_dtype=torch.float16
     )
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_path,
-        device_map="auto",
+
+    tokenizer = AutoTokenizer.from_pretrained(base_model_id, local_files_only=True)
+
+    # base model 로드
+    base_model = AutoModelForCausalLM.from_pretrained(
+        base_model_id,
         quantization_config=quant_config,
-        torch_dtype=torch.float16,
-        attn_implementation="eager"
+        device_map="auto",
+        attn_implementation="eager",
+        local_files_only=True
     )
+
+    # PEFT 양자화 모델용 준비
+    base_model = prepare_model_for_kbit_training(base_model)
+
+    # LoRA 구조 정의
+    peft_config = LoraConfig(
+        r=16,
+        lora_alpha=16,
+        target_modules=["q_proj", "v_proj"],
+        lora_dropout=0.05,
+        bias="none",
+        task_type="CAUSAL_LM"
+    )
+    model = get_peft_model(base_model, peft_config)
+
+    # 학습된 adapter 로드
+    model.load_adapter(str(model_path), adapter_name="default")
+
+    model = model.half()
     model.eval()
+    model.print_trainable_parameters()
     return tokenizer, model
 
 # 등급과 이유 파싱 함수
@@ -60,16 +88,15 @@ base_prompt = """
 다음 문서의 내용을 분석하여 보안등급을 1급, 2급, 3급 중 하나로 판단하고, 그 이유도 간단히 설명하세요.
 
 문서:
-\"\"\"{doc_text}\"\"\"
-문서 내 포함 이미지 내용 (디바이스, 회로도, 흐름도 등 해당 페이지의 이미지에서 추출된 시각 정보입니다):
-\"\"\"{img_text}\"\"\"
+\"\"\"{doc_text}\"\"\"  
+문서 내 포함 이미지 내용 (디바이스, 회로도, 흐름도 등 해당 페이지의 이미지에서 추출된 시각 정보입니다):  
+\"\"\"{img_text}\"\"\"  
 
 보안등급 및 이유:
 """
 
-
 # 메인 인퍼런스 함수
-def run_inference(input_path="document.jsonl", output_path="output_results_jsonlver.jsonl", model_path="fine_tune/checkpoints/finetuned_gemma_qlora"):
+def run_inference(input_path="output/document.jsonl", output_path="output/output_results.jsonl", model_path="module/llm/fine_tune/checkpoints/finetuned_gemma_qlora"):
     tokenizer, model = load_model(model_path)
 
     with open(input_path, "r", encoding="utf-8") as infile, \
@@ -79,16 +106,27 @@ def run_inference(input_path="document.jsonl", output_path="output_results_jsonl
             data = json.loads(line)
             doc_text = data.get("text", "").strip()
             page_num = data.get("page", None)
-            img_text = data.get("image", "").strip()
 
-            if not doc_text or page_num is None :
+            img_text_raw = data.get("image", "")
+            img_text = ", ".join(img_text_raw) if isinstance(img_text_raw, list) else str(img_text_raw)
+            img_text = img_text.strip()
+
+            if not doc_text or page_num is None:
                 print("⚠️ 입력 데이터에 'text' 또는 'page'가 누락되었습니다. 건너뜁니다.")
                 continue
 
-            prompt = base_prompt.format(doc_text=doc_text , img_text=img_text)
+            prompt = base_prompt.format(doc_text=doc_text, img_text=img_text)
 
-            inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-            input_length = inputs.input_ids.shape[1]
+            # 1. Tokenize
+            inputs = tokenizer(prompt, return_tensors="pt")
+
+            # 2. input_ids는 long 유지, attention_mask 등은 float16 변환
+            for k in inputs:
+                if k == "input_ids":
+                    inputs[k] = inputs[k].to(model.device)
+                else:
+                    inputs[k] = inputs[k].to(model.device).to(torch.float16)
+            input_length = inputs["input_ids"].shape[1]
 
             with torch.no_grad():
                 outputs = model.generate(
@@ -114,3 +152,7 @@ def run_inference(input_path="document.jsonl", output_path="output_results_jsonl
             }
             outfile.write(json.dumps(result, ensure_ascii=False) + "\n")
             print(f"✅ {page_num}페이지 완료 - {grade}")
+    # 🎯 모델 제거 및 메모리 정리
+    del model
+    del tokenizer
+    torch.cuda.empty_cache()    

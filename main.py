@@ -6,7 +6,7 @@ from module.classifier import classify_pdf_document
 from module.text_table_parser import extract_tables_from_pdf
 from module.sampling import structure_based_sampling
 from module.predict_image_class import predict_image
-
+from module.llm.llm_main import llm_pipeline
 def save_jsonl(pages, output_path):
     seen = set()
     with open(output_path, "w", encoding="utf-8") as f:
@@ -70,5 +70,8 @@ def main():
     save_jsonl(result_pages, jsonl_path)
     print(f"\n✅ JSONL 저장 완료: {jsonl_path}")
 
+
+
 if __name__ == "__main__":
     main()
+    llm_pipeline()

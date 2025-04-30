@@ -1,7 +1,7 @@
 import json
 from collections import Counter
 
-def load_results(file_path="output/document.jsonl"):
+def load_results(file_path="output/output_results.jsonl"):
     with open(file_path, "r", encoding="utf-8") as f:
         return [json.loads(line) for line in f]
 
@@ -23,7 +23,6 @@ def print_grade_summary(results):
 
     print("\n📘 전체 보안등급 판단 결과")
     overall = determine_overall_grade(results)
-    print(f"📌 최종 등급: {overall}")
 
     for grade in ["1급", "2급", "3급"]:
         pages = page_by_grade[grade]
