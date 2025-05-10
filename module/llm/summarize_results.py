@@ -44,31 +44,33 @@ def summarize_results(results_path="output/output_results.jsonl"):
     # 1. 모델 로드
     tokenizer, model = load_base_model()
 
-    # 2. 등급 및 이유 수집
-    grades, reasons = [], []
+    # 2. 등급 및 이유 수집 (등급별로 분리 저장)
+    grade_reason_map = {"1급": [], "2급": [], "3급": []}
     with open(results_path, "r", encoding="utf-8") as f:
         for line in f:
             data = json.loads(line)
             grade = data.get("grade", "").strip()
             reason = data.get("reason", "").strip()
-            if grade:
-                grades.append(grade)
-            if reason:
-                reasons.append(reason)
+            if grade and reason and grade in grade_reason_map:
+                grade_reason_map[grade].append(reason)
 
-    # 3. 최종 등급 결정
-    if '1급' in grades:
-        final_grade = '1급'
-    elif '2급' in grades:
-        final_grade = '2급'
+    # 3. 최종 등급 결정 및 해당 이유 선택
+    if grade_reason_map["1급"]:
+        final_grade = "1급"
+        selected_reasons = grade_reason_map["1급"]
+    elif grade_reason_map["2급"]:
+        final_grade = "2급"
+        selected_reasons = grade_reason_map["2급"]
     else:
-        final_grade = '3급'
+        final_grade = "3급"
+        selected_reasons = grade_reason_map["3급"]
+
 
     # 4. 프롬프트 구성
-    prompt = summarize_prompt.format(reasons="\n".join(reasons))
+    prompt = summarize_prompt.format(reasons="\n".join(selected_reasons))
 
     # 5. 입력 토크나이즈
-    inputs = tokenizer(prompt, return_tensors="pt")
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=4096)
     for k in inputs:
         inputs[k] = inputs[k].to(model.device) if k == "input_ids" else inputs[k].to(model.device).to(torch.float16)
     input_length = inputs["input_ids"].shape[1]
@@ -87,15 +89,14 @@ def summarize_results(results_path="output/output_results.jsonl"):
     generated_tokens = outputs[0][input_length:]
     generated_text = tokenizer.decode(generated_tokens, skip_special_tokens=True)
 
-    # 7. "요약:" 제거
+    # 7. "요약:" 제거 및 마무리
     if "요약:" in generated_text:
         generated_text = generated_text.split("요약:")[-1].strip()
     summary = generated_text.strip()
-    #summary = generated_text.strip().split('\n')[0]
 
     # 8. 결과 출력
-    print(f" 최종 보안등급: {final_grade}")
-    print(f" 요약 결과: {summary}")
+    print(f"✅ 최종 보안등급: {final_grade}")
+    print(f"📝 요약 결과:\n{summary}")
 
     # 9. 메모리 정리
     del model
