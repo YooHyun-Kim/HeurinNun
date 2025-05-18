@@ -114,10 +114,3 @@ def summarize_results(results_path="output/output_results.jsonl"):
     #     "final_grade": final_grade,
     #     "final_summary": summary
     # }
-
-if __name__ == "__main__":
-    # 예시로 사용될 JSONL 파일 경로
-    example_results_path = "../../output/output_results.jsonl"
-    
-    # 요약 결과 생성
-    summarize_results(results_path=example_results_path)
