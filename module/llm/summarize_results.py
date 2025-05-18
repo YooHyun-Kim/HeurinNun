@@ -3,7 +3,7 @@ import json
 import re
 import gc
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-
+import random
 def load_base_model():
     base_model_id = "beomi/open-llama-2-ko-7b"
 
@@ -27,11 +27,11 @@ def load_base_model():
 
 # 📌 요약 프롬프트 템플릿
 summarize_prompt = """
-다음은 각 페이지별로 보안등급을 판단한 이유 모음입니다. 
-등급을 결정한 핵심적인 이유만 간단히 정리해서 작성하세요.
-불필요한 반복은 피하고, 요약은 1~2문장 이내로 작성하세요.
+보안등급: {grade}
 
-불필요한 설명, 기관명, 날짜 등은 생략하고, 핵심 기술/설계/구성 정보만 강조해 주세요.
+다음은 해당 등급으로 판단된 이유들입니다.
+중복되거나 유사한 이유는 하나로 묶고, 핵심 기술/설계/구성 정보 중심으로 2~3문장 이내로 요약하십시오.
+기관명, 날짜, 추상적인 설명은 제외하고 구체적인 기술적 이유만 포함하십시오.
 
 이유 목록:
 \"\"\"{reasons}\"\"\"
@@ -64,11 +64,16 @@ def summarize_results(results_path="output/output_results.jsonl"):
     else:
         final_grade = "3급"
         selected_reasons = grade_reason_map["3급"]
-
-
+    selected_reasons = [reason.replace("이유:", "").strip() for reason in selected_reasons]
+    selected_reasons = list(set(selected_reasons))  # 중복 제거
+    selected_reasons = random.sample(selected_reasons, min(len(selected_reasons), 10))
+    
+    print(f"선택된 이유 목록: {selected_reasons}")
     # 4. 프롬프트 구성
-    prompt = summarize_prompt.format(reasons="\n".join(selected_reasons))
-
+    prompt = summarize_prompt.format(
+    grade=final_grade,
+    reasons="\n".join(selected_reasons)
+)
     # 5. 입력 토크나이즈
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=4096)
     for k in inputs:
@@ -109,3 +114,10 @@ def summarize_results(results_path="output/output_results.jsonl"):
     #     "final_grade": final_grade,
     #     "final_summary": summary
     # }
+
+if __name__ == "__main__":
+    # 예시로 사용될 JSONL 파일 경로
+    example_results_path = "../../output/output_results.jsonl"
+    
+    # 요약 결과 생성
+    summarize_results(results_path=example_results_path)
