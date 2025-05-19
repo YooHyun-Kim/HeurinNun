@@ -1,31 +1,27 @@
 import pdfplumber
 import re
-import random
 
 def structure_based_sampling(pdf_path, num_pages=40):
     sampled_pages = []
-    total_pages = 0
+    sampled_page_numbers = []
 
     with pdfplumber.open(pdf_path) as pdf:
         total_pages = len(pdf.pages)
 
-        # 페이지 수가 num_pages보다 적으면 전체 페이지를 그대로 사용
-        if total_pages < num_pages:
-            print(f"PDF 파일의 페이지 수가 {num_pages} 페이지 미만이므로 전체 페이지를 사용합니다.")
-            sampled_page_numbers = list(range(total_pages))  # 전체 페이지 번호 사용
-            sampled_pages = [pdf.pages[i-1].extract_text() or "" for i in sampled_page_numbers]
+        if total_pages <= num_pages:
+            print(f"📄 PDF는 {total_pages}페이지입니다. 전체 페이지를 사용합니다.")
+            sampled_indices = list(range(total_pages))
         else:
-            page_scores = []  # 페이지별 중요도 점수 저장
+            page_scores = []
 
-            for i, page in enumerate(pdf.pages):
+            for i, page in enumerate(pdf.pages):  # i: 0-based
                 text = page.extract_text() or ""
                 score = 0
 
-                # 샘플링 로직 (목차, 큰 글씨, 표/그래프 포함된 페이지 등)
                 if re.search(r"목차|contents", text, re.IGNORECASE):
                     score += 5
                 words = page.extract_words()
-                if words and "size" in words[0] and words[0]["size"] > 15:
+                if words and isinstance(words[0], dict) and words[0].get("size", 0) > 15:
                     score += 3
                 if len(page.extract_tables()) > 0:
                     score += 4
@@ -34,10 +30,14 @@ def structure_based_sampling(pdf_path, num_pages=40):
                 if re.search(r"결론|요약|summary|conclusion", text, re.IGNORECASE):
                     score += 5
 
-                page_scores.append((i+1, score, text))
+                page_scores.append((i, score))
 
-            page_scores.sort(key=lambda x: x[1], reverse=True)  # 점수 높은 순으로 정렬
-            sampled_page_numbers = [x[0] for x in page_scores[:num_pages]]
-            sampled_pages = [pdf.pages[i-1].extract_text() or "" for i in sampled_page_numbers]
+            # 점수 기준 정렬 (점수 내림차순, 인덱스 오름차순)
+            page_scores.sort(key=lambda x: (-x[1], x[0]))
+            sampled_indices = [x[0] for x in page_scores[:num_pages]]
+
+        # 🔥 핵심 수정: 직접 인덱스로 접근 (i-1 절대 X)
+        sampled_pages = [pdf.pages[i].extract_text() or "" for i in sampled_indices]
+        sampled_page_numbers = [i for i in sampled_indices]  # 1-based 번호 반환
 
     return sampled_page_numbers, sampled_pages
