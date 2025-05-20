@@ -36,6 +36,6 @@ def split_dataset(root_dir, output_dir, train_ratio=0.8, val_ratio=0.1):
 
 
 if __name__ == "__main__":
-    original_dir = "image_set"
+    original_dir = "prototypes"
     target_dir = "image_dataset"
     split_dataset(original_dir, target_dir, train_ratio=0.8, val_ratio=0.1)
