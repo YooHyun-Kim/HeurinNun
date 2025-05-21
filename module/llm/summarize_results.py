@@ -1,116 +1,93 @@
-import torch
 import json
-import re
-import gc
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 import random
-def load_base_model():
-    base_model_id = "beomi/open-llama-2-ko-7b"
+import gc
+from collections import defaultdict, Counter
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        base_model_id,
-        trust_remote_code=True,
-        local_files_only=False   # 처음 다운로드할 때만 False
-    )
+from konlpy.tag import Okt
+from sklearn.feature_extraction.text import TfidfVectorizer
 
-    model = AutoModelForCausalLM.from_pretrained(
-        base_model_id,
-        device_map="auto",
-        torch_dtype=torch.float16,     # float16 사용
-        attn_implementation="eager",
-        trust_remote_code=True,
-        local_files_only=False         # 처음 다운로드할 때만 False
-    )
 
-    model.eval()
-    return tokenizer, model
+def select_representative_reasons(reasons, top_k=2, random_k=1):
+    cleaned = list({r.strip() for r in reasons if len(r.strip()) > 5})
+    if len(cleaned) <= (top_k + random_k):
+        return cleaned
 
-# 📌 요약 프롬프트 템플릿
-summarize_prompt = """
-보안등급: {grade}
+    sorted_by_length = sorted(cleaned, key=len, reverse=True)
+    top_reasons = sorted_by_length[:top_k]
+    remaining = list(set(cleaned) - set(top_reasons))
+    random_reasons = random.sample(remaining, min(random_k, len(remaining)))
 
-다음은 해당 등급으로 판단된 이유들입니다.
-중복되거나 유사한 이유는 하나로 묶고, 핵심 기술/설계/구성 정보 중심으로 2~3문장 이내로 요약하십시오.
-기관명, 날짜, 추상적인 설명은 제외하고 구체적인 기술적 이유만 포함하십시오.
+    return top_reasons + random_reasons
 
-이유 목록:
-\"\"\"{reasons}\"\"\"
 
-요약:
-"""
+def extract_keywords_and_tfidf(reasons, stopwords=None):
+    okt = Okt()
+    noun_docs = []
+    all_nouns = []
 
-# ✅ 요약 수행 함수
+    for reason in reasons:
+        nouns = okt.nouns(reason)
+        if stopwords:
+            nouns = [n for n in nouns if n not in stopwords]
+        noun_docs.append(" ".join(nouns))
+        all_nouns.extend(nouns)
+
+    if len(reasons) > 1:
+        vectorizer = TfidfVectorizer()
+        tfidf_matrix = vectorizer.fit_transform(noun_docs)
+        tfidf_scores = tfidf_matrix.toarray().sum(axis=0)
+        tfidf_vocab = vectorizer.get_feature_names_out()
+        tfidf_dict = {word: score for word, score in zip(tfidf_vocab, tfidf_scores)}
+        top_tfidf_words = [word for word, _ in sorted(tfidf_dict.items(), key=lambda x: x[1], reverse=True)[:5]]
+    else:
+        top_tfidf_words = [word for word, _ in Counter(all_nouns).most_common(5)]
+
+    return top_tfidf_words
+
+
 def summarize_results(results_path="output/output_results.jsonl"):
-    # 1. 모델 로드
-    tokenizer, model = load_base_model()
+    grade_reason_map = defaultdict(list)
 
-    # 2. 등급 및 이유 수집 (등급별로 분리 저장)
-    grade_reason_map = {"1급": [], "2급": [], "3급": []}
     with open(results_path, "r", encoding="utf-8") as f:
         for line in f:
             data = json.loads(line)
             grade = data.get("grade", "").strip()
             reason = data.get("reason", "").strip()
-            if grade and reason and grade in grade_reason_map:
+            if grade and reason:
                 grade_reason_map[grade].append(reason)
 
-    # 3. 최종 등급 결정 및 해당 이유 선택
-    if grade_reason_map["1급"]:
-        final_grade = "1급"
-        selected_reasons = grade_reason_map["1급"]
-    elif grade_reason_map["2급"]:
-        final_grade = "2급"
-        selected_reasons = grade_reason_map["2급"]
+    for level in ["1급", "2급", "3급"]:
+        if grade_reason_map[level]:
+            final_grade = level
+            reasons = [r.replace("이유:", "").strip() for r in grade_reason_map[level]]
+            break
     else:
-        final_grade = "3급"
-        selected_reasons = grade_reason_map["3급"]
-    selected_reasons = [reason.replace("이유:", "").strip() for reason in selected_reasons]
-    selected_reasons = list(set(selected_reasons))  # 중복 제거
-    selected_reasons = random.sample(selected_reasons, min(len(selected_reasons), 10))
-    
-    print(f"선택된 이유 목록: {selected_reasons}")
-    # 4. 프롬프트 구성
-    prompt = summarize_prompt.format(
-    grade=final_grade,
-    reasons="\n".join(selected_reasons)
-)
-    # 5. 입력 토크나이즈
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=4096)
-    for k in inputs:
-        inputs[k] = inputs[k].to(model.device) if k == "input_ids" else inputs[k].to(model.device).to(torch.float16)
-    input_length = inputs["input_ids"].shape[1]
+        print("❌ No valid security grade reason found.")
+        return None
 
-    # 6. 요약 생성
-    with torch.no_grad():
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=200,
-            temperature=0.2,
-            top_p=0.9,
-            do_sample=True,
-            repetition_penalty=1.2
-        )
+    stopwords = {'함유', '정보', '결과', '기반', '포함', '관련', '구체', '실제','문헌','다수','중요'}
 
-    generated_tokens = outputs[0][input_length:]
-    generated_text = tokenizer.decode(generated_tokens, skip_special_tokens=True)
+    top_keywords = extract_keywords_and_tfidf(reasons, stopwords)
+    selected = select_representative_reasons(reasons)
 
-    # 7. "요약:" 제거 및 마무리
-    if "요약:" in generated_text:
-        generated_text = generated_text.split("요약:")[-1].strip()
-    summary = generated_text.strip()
+    # print(f"\n✅ Final Security Grade: {final_grade}")
+    # print("📌 Representative Reasons:")
+    # for i, r in enumerate(selected, 1):
+    #     print(f"{i}. {r}")
 
-    # 8. 결과 출력
-    print(f"✅ 최종 보안등급: {final_grade}")
-    print(f"📝 요약 결과:\n{summary}")
+    # print("\n📌 Top 5 Keywords from Reasons:")
+    # for idx, word in enumerate(top_keywords, 1):
+    #     print(f"keyword{idx}: {word}")
 
-    # 9. 메모리 정리
-    del model
-    del tokenizer
-    torch.cuda.empty_cache()
     gc.collect()
 
-    # # 10. JSON 반환
-    # return {
-    #     "final_grade": final_grade,
-    #     "final_summary": summary
-    # }
+    return {
+    "final_grade": final_grade,
+    "final_reasons": "\n".join([f"{i+1}. {r}" for i, r in enumerate(selected)]),
+    **{f"keyword{idx+1}": word for idx, word in enumerate(top_keywords)}
+    }
+
+
+if __name__ == "__main__":
+    result = summarize_results("../../output/output_results.jsonl")
+    print(result)
