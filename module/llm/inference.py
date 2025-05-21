@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 
-def load_model(model_path):
+def load_model_gemma(model_path):
     model_path = Path(model_path).resolve()
     base_model_id = "recoilme/recoilme-gemma-2-9B-v0.4"
 
@@ -50,6 +50,99 @@ def load_model(model_path):
     model.print_trainable_parameters()
     return tokenizer, model
 
+def load_model_seokdong(model_path):
+    model_path = Path(model_path).resolve()
+    base_model_id = "SEOKDONG/llama3.1_korean_v1.1_sft_by_aidx"  # 또는 다른 LLaMA3 모델
+
+    quant_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.float16
+    )
+
+    tokenizer = AutoTokenizer.from_pretrained(base_model_id, local_files_only=True)
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "right"
+
+    base_model = AutoModelForCausalLM.from_pretrained(
+        base_model_id,
+        quantization_config=quant_config,
+        device_map="auto",
+        attn_implementation="eager",
+        local_files_only=True
+    )
+
+    base_model = prepare_model_for_kbit_training(base_model)
+
+    peft_config = LoraConfig(
+        r=16,
+        lora_alpha=16,
+        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+        lora_dropout=0.05,
+        bias="none",
+        task_type="CAUSAL_LM"
+    )
+
+    model = get_peft_model(base_model, peft_config)
+    model.load_adapter(str(model_path), adapter_name="default")
+
+    model = model.half()
+    model.eval()
+    model.print_trainable_parameters()
+    return tokenizer, model
+
+def load_model_aidx(model_path):
+    model_path = Path(model_path).resolve()
+    base_model_id = "AIDX-ktds/ktdsbaseLM-v0.13-onbased-llama3.1"
+
+    # 1. QLoRA 양자화 설정
+    quant_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.float16
+    )
+
+    # 2. Tokenizer 로드 및 설정
+    tokenizer = AutoTokenizer.from_pretrained(base_model_id, local_files_only=True)
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "right"
+
+    # 3. Base 모델 로드
+    base_model = AutoModelForCausalLM.from_pretrained(
+        base_model_id,
+        quantization_config=quant_config,
+        device_map="auto",
+        attn_implementation="eager",
+        local_files_only=True
+    )
+
+    # 4. QLoRA 학습 준비
+    base_model = prepare_model_for_kbit_training(base_model)
+
+    # 5. LoRA 설정 (LLaMA3 전용)
+    peft_config = LoraConfig(
+        r=16,
+        lora_alpha=16,
+        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+        lora_dropout=0.05,
+        bias="none",
+        task_type="CAUSAL_LM"
+    )
+
+    # 6. LoRA 어댑터 적용
+    model = get_peft_model(base_model, peft_config)
+    model.load_adapter(str(model_path), adapter_name="default")
+
+    # 7. 평가모드 전환 및 반정밀도 설정
+    model = model.half()
+    model.eval()
+    model.print_trainable_parameters()
+
+    return tokenizer, model
+
+
 # 등급과 이유 파싱 함수
 def parse_grade_and_reason(text):
     match = re.search(r"(1급|2급|3급)", text)
@@ -69,7 +162,7 @@ base_prompt = """
 
 1급: 기술정보(연구, 부품, 설계도, 장비, 디자인 요소), 개인정보, 거래 납품 리스트(예: 제조 기술 명시 등), 특정 단어(기밀유지, 보안관리 등)가 포함된 민감한 문서
 
-2급: 단순 설계도(예: 평면도), 내부 보고서(재정현황, 감사, 결산 등). 단독 설계도는 2급이나, 도메인 일치 시 1급으로 상향될 수 있음
+2급: 재정현황, 감사, 결산, 인사평가, 업부보고서, 징계문서와 같은 내부 보고서  
 
 3급: 1급,2급 요소가 하나도 없는 일반적인 문서(오픈소스, 공개 정보 등)
 
@@ -88,16 +181,27 @@ base_prompt = """
 다음 문서의 내용을 분석하여 보안등급을 1급, 2급, 3급 중 하나로 판단하고, 그 이유도 간단히 설명하세요.
 
 문서:
-\"\"\"{doc_text}\"\"\"  
-문서 내 포함 이미지 내용 (디바이스, 회로도, 흐름도 등 해당 페이지의 이미지에서 추출된 시각 정보입니다):  
-\"\"\"{img_text}\"\"\"  
+\"\"\"{doc_text}\"\"\"
+문서 내 포함 이미지 내용 (해당 페이지의 이미지에서 추출된 시각 정보입니다):
+\"\"\"{img_text}\"\"\"
 
 보안등급 및 이유:
 """
 
 # 메인 인퍼런스 함수
 def run_inference(input_path="output/document.jsonl", output_path="output/output_results.jsonl", model_path="module/llm/fine_tune/checkpoints/finetuned_gemma_qlora"):
-    tokenizer, model = load_model(model_path)
+    if model_path == "module/llm/fine_tune/checkpoints/finetuned_gemma_qlora":
+        tokenizer, model = load_model_gemma(model_path)  # 젬마모델 사용 - 디폴트
+    elif model_path == "module/llm/fine_tune/checkpoints_ktds_llama3/finetuned_ktds_llama3_qlora":
+        tokenizer, model = load_model_aidx(model_path)
+    #tokenizer, model = load_model_aidx(model_path) # aidx모델 사용
+    elif model_path == "module/llm/fine_tune/checkpoints_llama3/finetuned_llama3_qlora":
+        tokenizer, model = load_model_seokdong(model_path)
+        
+    #tokenizer, model = load_model_seokdong(model_path) # seokdong모델 사용
+    else:
+        print("❌ 잘못된 모델 경로입니다. 젬마 모델을 사용합니다.")
+        tokenizer, model = load_model_gemma(model_path)
 
     with open(input_path, "r", encoding="utf-8") as infile, \
          open(output_path, "w", encoding="utf-8") as outfile:
@@ -134,6 +238,7 @@ def run_inference(input_path="output/document.jsonl", output_path="output/output
                     max_new_tokens=300,
                     temperature=0.3,
                     top_p=0.9,
+                    repetition_penalty=1.2,
                     do_sample=True
                 )
 
