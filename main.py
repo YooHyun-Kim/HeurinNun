@@ -22,7 +22,7 @@ def save_jsonl(pages, output_path):
                 f.write("\n")
 
 def main():
-    pdf_path    = "data/test_data/기술/1급/고속 신호처리용 ADC 제어 회로 설계 기술 설명서.pdf"
+    pdf_path    = "testdata/인사평가모음.pdf"
     output_dir  = Path("output")
     output_dir.mkdir(exist_ok=True)
     jsonl_path  = output_dir / "document.jsonl"
@@ -84,7 +84,8 @@ def main():
     print(f"\n✅ JSONL 저장 완료: {jsonl_path}")
 
     # 7) LLM 파이프라인 호출
-    llm_pipeline()
-
+    result = llm_pipeline()
+    print(f"\n✅ LLM 파이프라인 결과: {result}")
+    return result
 if __name__ == "__main__":
     main()
