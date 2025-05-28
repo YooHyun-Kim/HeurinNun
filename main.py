@@ -10,6 +10,10 @@ from module.sampling import structure_based_sampling
 from module.tip_adapter.tip_adapter import predict_image_tip_adapter
 from module.llm.llm_main import llm_pipeline
 from PIL import Image  # 이미지 로딩용
+from flask import Flask, request, jsonify
+import pandas as pd
+
+app = Flask(__name__)
 
 def save_jsonl(pages, output_path):
     seen = set()
@@ -21,11 +25,13 @@ def save_jsonl(pages, output_path):
                 json.dump(page, f, ensure_ascii=False)
                 f.write("\n")
 
-def main():
-    pdf_path    = "testdata/인사평가모음.pdf"
-    output_dir  = Path("output")
+def main(filename):
+    pdf_path = "../save_doc"
+
+    pdf_path = os.path.join("../save_doc", filename)
+    output_dir = Path("output")
     output_dir.mkdir(exist_ok=True)
-    jsonl_path  = output_dir / "document.jsonl"
+    jsonl_path = output_dir / "document.jsonl"
 
     # 1) 페이지별 텍스트·이미지 경로만 뽑기 (이미지 분류는 여기서 하지 않음)
     doc_type, doc_text, _, page_texts, page_images = classify_pdf_document(
@@ -36,7 +42,8 @@ def main():
     all_tables              = extract_tables_from_pdf(pdf_path)
     sampled_page_numbers, _ = structure_based_sampling(pdf_path, num_pages=40)
     print(f"\n📄 샘플링된 페이지: {sampled_page_numbers}")
-
+    sample_result = {"sampled": sampled_page_numbers}   # 샘플링된 페이지 번호
+    sampled_result = [p + 1 for p in sampled_page_numbers]
     result_pages = []
     for page_num in sampled_page_numbers:
         text        = page_texts[page_num] if page_num < len(page_texts) else ""
@@ -84,8 +91,32 @@ def main():
     print(f"\n✅ JSONL 저장 완료: {jsonl_path}")
 
     # 7) LLM 파이프라인 호출
-    result = llm_pipeline()
+    page_result, result = llm_pipeline()
     print(f"\n✅ LLM 파이프라인 결과: {result}")
-    return result
+    print("Sampled Pages:", sample_result)
+    print(f"\n✅ LLM 파이프라인 결과: {page_result}")
+    print(f"\n✅ LLM 파이프라인 결과: {result}")
+    result = {**result, **sample_result, **page_result}
+    print(f"\n✅ LLM 파이프라인 결과: {result}")
+    return result 
+    #return sample_result, result, page_result
+
+@app.route("/", methods=['GET'])
+def home():
+    return "hello"
+
+@app.route("/predict", methods=['POST'])
+def spring():
+
+    file = request.data.decode('utf-8')
+    result = main(file)
+    
+    #result = {
+     #   "grade": "1",
+     #   "reason": "신대섭"
+    #}
+    df = pd.DataFrame([result])
+    output_dict = df.iloc[0].to_dict()
+    return jsonify(output_dict)
 if __name__ == "__main__":
-    main()
+    app.run()
