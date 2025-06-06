@@ -41,7 +41,8 @@ with open(input_file, "r", encoding="utf-8") as f_in, open(output_file, "w", enc
 
         # 텍스트 추출
         if data["prompt"].startswith("문서:"):
-            doc_text = data["prompt"].split("문서:")[1].split("\n")[0].strip()
+            #doc_text = data["prompt"].split("문서:")[1].split("\n")[0].strip()
+            doc_text = data["prompt"].split("문서:")[1].strip()
         else:
             doc_text = data["prompt"].strip()
 
