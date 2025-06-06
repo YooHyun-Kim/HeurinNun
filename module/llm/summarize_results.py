@@ -65,7 +65,7 @@ def summarize_results(results_path="output/output_results.jsonl"):
         print("❌ No valid security grade reason found.")
         return None
 
-    stopwords = {'함유', '정보', '결과', '기반', '포함', '관련', '내용', '실제','문헌','다수','보이','중요','대한','등','것','임',"포", "함",'액',"사","해당","외","또한","검색","판단","모든","다른","사람","동일","나타남","확인","사용"}
+    stopwords = {'함유', '결과', '기반', '포함', '관련', '내용','문헌','다수','보이','중요','대한','등','것','임',"포", "함",'액',"사","해당","외","또한","판단","모든","다른","동일","나타남","확인","사용"}
 
     top_keywords = extract_keywords_and_tfidf(reasons, stopwords)
     selected = select_representative_reasons(reasons)
