@@ -65,11 +65,11 @@ def summarize_results(results_path="output/output_results.jsonl"):
         print("❌ No valid security grade reason found.")
         return None
 
-    stopwords = {'함유', '정보', '결과', '기반', '포함', '관련', '구체', '실제','문헌','다수','중요'}
+    stopwords = {'함유', '정보', '결과', '기반', '포함', '관련', '내용', '실제','문헌','다수','보이','중요','대한','등','것','임',"포", "함",'액',"사","해당","외","또한","검색","판단","모든","다른","사람","동일","나타남","확인","사용"}
 
     top_keywords = extract_keywords_and_tfidf(reasons, stopwords)
     selected = select_representative_reasons(reasons)
-
+    
     # print(f"\n✅ Final Security Grade: {final_grade}")
     # print("📌 Representative Reasons:")
     # for i, r in enumerate(selected, 1):
@@ -80,11 +80,11 @@ def summarize_results(results_path="output/output_results.jsonl"):
     #     print(f"keyword{idx}: {word}")
 
     gc.collect()
-
+    
     return {
-    "final_grade": final_grade,
-    "final_reasons": "\n".join([f"{i+1}. {r}" for i, r in enumerate(selected)]),
-    **{f"keyword{idx+1}": word for idx, word in enumerate(top_keywords)}
+    "grade": final_grade,
+    "reason": ",\u00A0".join(selected),  # 👉 이유는 쉼표+공백으로 연결
+    "keyword": top_keywords  # 👉 리스트 형태로 반환
     }
 
 
