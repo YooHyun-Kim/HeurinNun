@@ -17,7 +17,7 @@ def llm_pipeline():
 
     # 2. 결과 로드 및 요약 출력
     results = load_results()
-    print_grade_summary(results)
+    page_result = print_grade_summary(results)
     result = summarize_results()
 
 # 추론 종료 시간 출력
@@ -40,6 +40,6 @@ def llm_pipeline():
             find_reason_by_page(results, page)
         except ValueError:
             print(" 숫자를 입력해주세요.")
-    return result
+    return page_result,result
 if __name__ == "__main__":
     llm_pipeline()
