@@ -222,7 +222,7 @@ def run_inference(input_path="output/document.jsonl", output_path="output/output
             prompt = base_prompt.format(doc_text=doc_text, img_text=img_text)
 
             # 1. Tokenize
-            inputs = tokenizer(prompt, return_tensors="pt")
+            inputs = tokenizer(prompt, return_tensors="pt",truncation=True, max_length=2048)
 
             # 2. input_ids는 long 유지, attention_mask 등은 float16 변환
             for k in inputs:
@@ -236,10 +236,10 @@ def run_inference(input_path="output/document.jsonl", output_path="output/output
                 outputs = model.generate(
                     **inputs,
                     max_new_tokens=300,
-                    temperature=0.3,
+                    temperature=0.0,
                     top_p=0.9,
                     repetition_penalty=1.2,
-                    do_sample=True
+                    do_sample=False
                 )
 
             generated_tokens = outputs[0][input_length:]
@@ -247,7 +247,8 @@ def run_inference(input_path="output/document.jsonl", output_path="output/output
 
             if "문서:" in generated_text:
                 generated_text = generated_text.split("문서:")[0].strip()
-
+            # 개행(\n) 기준으로 첫 문장만 추출
+            generated_text = generated_text.split('\n')[0].strip()
             grade, reason = parse_grade_and_reason(generated_text)
 
             result = {
