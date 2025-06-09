@@ -40,7 +40,7 @@ dataset = load_dataset("json", data_files={"train": "data/train_reformatted.json
 
 def tokenize(example):
     full_prompt = f"{example['prompt']} {example['response']}"
-    return tokenizer(full_prompt, truncation=True, padding="max_length", max_length=2048)
+    return tokenizer(full_prompt, truncation=True, padding="max_length", max_length=512)
 
 tokenized_dataset = dataset.map(tokenize)
 
