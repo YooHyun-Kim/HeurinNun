@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>문서 등급 평가 시스템</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+        :root {
+          --primary: #4361ee;
+          --primary-light: #4895ef;
+          --primary-dark: #3a0ca3;
+          --secondary: #f72585;
+          --light: #f8f9fa;
+          --dark: #212529;
+          --gray: #6c757d;
+          --success: #4cc9f0;
+          --white: #ffffff;
+          --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+          --transition: all 0.3s ease;
+        }
+
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+          font-family: 'Noto Sans KR', sans-serif;
+        }
+
+        body {
+          background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+          color: var(--dark);
+          line-height: 1.6;
+          min-height: 100vh;
+          padding: 2rem 0;
+        }
+
+        /* 상단 네비게이션 바 스타일 */
+        nav.top-nav {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1rem 2rem;
+          background-color: var(--white);
+          box-shadow: var(--shadow);
+          margin-bottom: 2rem;
+        }
+        nav.top-nav .brand {
+          text-decoration: none;
+          color: var(--primary-dark);
+          font-weight: 700;
+          font-size: 1.5rem;
+        }
+        .right-menu {
+          display: flex;
+          align-items: center;
+        }
+        .nav-links a {
+          text-decoration: none;
+          color: var(--primary-dark);
+          font-weight: 500;
+          font-size: 1.1rem;
+          margin-right: 1rem;
+        }
+        /* 햄버거 메뉴 및 드롭다운 스타일 */
+        .hamburger-menu {
+          position: relative;
+          cursor: pointer;
+        }
+        .hamburger-menu i {
+          font-size: 1.8rem;
+          color: var(--primary-dark);
+        }
+        .dropdown-menu {
+          display: none;
+          position: absolute;
+          top: 120%;
+          right: 0;
+          background: var(--white);
+          box-shadow: var(--shadow);
+          border-radius: 4px;
+          overflow: hidden;
+          z-index: 100;
+          min-width: 180px;
+        }
+        .hamburger-menu:hover .dropdown-menu {
+          display: block;
+        }
+        .dropdown-menu a {
+          display: block;
+          padding: 0.75rem 1rem;
+          text-decoration: none;
+          color: var(--primary-dark);
+          transition: var(--transition);
+          white-space: nowrap;
+        }
+        .dropdown-menu a:hover {
+          background: rgba(67, 97, 238, 0.1);
+        }
+
+        /* 사용자 프로필 스타일 */
+        .user-profile {
+          display: flex;
+          align-items: center;
+          cursor: pointer;
+          position: relative;
+        }
+        .user-avatar {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background-color: var(--primary-light);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--white);
+          font-weight: 700;
+          margin-right: 10px;
+        }
+        .user-name {
+          font-weight: 500;
+          color: var(--dark);
+        }
+        .user-menu {
+          display: none;
+          position: absolute;
+          top: 120%;
+          right: 0;
+          background: var(--white);
+          box-shadow: var(--shadow);
+          border-radius: 4px;
+          overflow: hidden;
+          z-index: 100;
+          min-width: 180px;
+        }
+        .user-profile:hover .user-menu {
+          display: block;
+        }
+
+        .container {
+          max-width: 1000px;
+          margin: 0 auto;
+          padding: 2rem;
+        }
+
+        header {
+          text-align: center;
+          margin-bottom: 3rem;
+          animation: fadeIn 1s ease;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+          color: var(--primary-dark);
+          margin-bottom: 0.5rem;
+          font-weight: 700;
+          font-size: 2.5rem;
+          letter-spacing: -0.5px;
+        }
+        .description {
+          color: var(--gray);
+          font-size: 1.1rem;
+          font-weight: 300;
+          max-width: 600px;
+          margin: 0 auto;
+        }
+        .card {
+          background-color: var(--white);
+          border-radius: 16px;
+          padding: 2.5rem;
+          box-shadow: var(--shadow);
+          margin-bottom: 2rem;
+          transition: var(--transition);
+          position: relative;
+          overflow: hidden;
+        }
+        .card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 5px;
+          background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+        .upload-section:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+        .upload-box {
+          border: 2px dashed var(--primary-light);
+          border-radius: 12px;
+          padding: 3.5rem 2rem;
+          text-align: center;
+          cursor: pointer;
+          transition: var(--transition);
+          margin-bottom: 1.5rem;
+          background-color: rgba(67, 97, 238, 0.05);
+        }
+        .upload-box:hover {
+          background-color: rgba(67, 97, 238, 0.1);
+          border-color: var(--primary);
+        }
+        .upload-icon {
+          font-size: 3.5rem;
+          color: var(--primary);
+          margin-bottom: 1.5rem;
+          animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+          0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-20px); }
+          60% { transform: translateY(-10px); }
+        }
+        .upload-text {
+          font-size: 1.2rem;
+          color: var(--gray);
+          margin-bottom: 0.5rem;
+        }
+        .upload-text-sub {
+          font-size: 0.9rem;
+          color: var(--gray);
+          opacity: 0.8;
+        }
+        .file-info {
+          margin-top: 1rem;
+          padding: 0.8rem 1.2rem;
+          background-color: rgba(67, 97, 238, 0.08);
+          border-radius: 8px;
+          display: none;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .file-name {
+          font-size: 0.95rem;
+          color: var(--primary);
+          font-weight: 500;
+          display: flex;
+          align-items: center;
+        }
+        .file-name i {
+          margin-right: 8px;
+        }
+        .file-clear {
+          background: none;
+          border: none;
+          color: var(--gray);
+          cursor: pointer;
+          font-size: 1rem;
+          transition: var(--transition);
+        }
+        .file-clear:hover {
+          color: var(--secondary);
+        }
+        .hidden-input {
+          display: none;
+        }
+        .btn {
+          background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+          color: white;
+          border: none;
+          padding: 0.9rem 2rem;
+          border-radius: 50px;
+          cursor: pointer;
+          font-size: 1rem;
+          font-weight: 500;
+          letter-spacing: 0.5px;
+          transition: var(--transition);
+          box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          max-width: 300px;
+          margin: 0 auto;
+        }
+        .btn i {
+          margin-right: 8px;
+        }
+        .btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(67, 97, 238, 0.4);
+        }
+        .btn:active {
+          transform: translateY(0);
+          box-shadow: 0 4px 10px rgba(67, 97, 238, 0.2);
+        }
+        .btn:disabled {
+          background: linear-gradient(90deg, #b8c2cc 0%, #cbd5e0 100%);
+          cursor: not-allowed;
+          box-shadow: none;
+        }
+        .grading-section {
+          display: none;
+        }
+        .grading-header {
+          display: flex;
+          align-items: center;
+          margin-bottom: 1.5rem;
+          padding-bottom: 1rem;
+          border-bottom: 1px solid rgba(108, 117, 125, 0.2);
+        }
+        .grading-header h2 {
+          color: var(--dark);
+          font-weight: 500;
+          margin: 0;
+          font-size: 1.5rem;
+        }
+        .grading-header .badge {
+          margin-left: auto;
+          background-color: var(--success);
+          color: var(--white);
+          padding: 0.4rem 1rem;
+          border-radius: 50px;
+          font-size: 0.8rem;
+          font-weight: 500;
+        }
+        .loader-container {
+          text-align: center;
+          padding: 3rem 0;
+        }
+        .loader {
+          display: inline-block;
+          position: relative;
+          width: 80px;
+          height: 80px;
+        }
+        .loader div {
+          display: inline-block;
+          position: absolute;
+          left: 8px;
+          width: 16px;
+          background: var(--primary);
+          animation: loader 1.2s cubic-bezier(0, 0.5, 0.5, 1) infinite;
+        }
+        .loader div:nth-child(1) {
+          left: 8px;
+          animation-delay: -0.24s;
+        }
+        .loader div:nth-child(2) {
+          left: 32px;
+          animation-delay: -0.12s;
+        }
+        .loader div:nth-child(3) {
+          left: 56px;
+          animation-delay: 0;
+        }
+        @keyframes loader {
+          0% {
+            top: 8px;
+            height: 64px;
+          }
+          50%, 100% {
+            top: 24px;
+            height: 32px;
+          }
+        }
+        .processing-text {
+          color: var(--gray);
+          font-size: 1.1rem;
+          margin-top: 1.5rem;
+        }
+        .results {
+          display: none;
+        }
+        .grade-container {
+          text-align: center;
+          margin: 2rem 0;
+        }
+        .grade {
+          font-size: 8rem;
+          font-weight: 700;
+          display: inline-block;
+          position: relative;
+          line-height: 1;
+        }
+        .grade.a { color: #4cc9f0; }
+        .grade.b { color: #43aa8b; }
+        .grade.c { color: #f9c74f; }
+        .grade.d { color: #f94144; }
+        .grade::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 120%;
+          height: 15px;
+          border-radius: 10px;
+          z-index: -1;
+          opacity: 0.3;
+        }
+        .grade.a::after { background-color: #4cc9f0; }
+        .grade.b::after { background-color: #43aa8b; }
+        .grade.c::after { background-color: #f9c74f; }
+        .grade.d::after { background-color: #f94144; }
+        .grade-text {
+          font-size: 1.2rem;
+          color: var(--gray);
+          margin-top: 0.5rem;
+        }
+        .grade-reason {
+          font-size: 1rem;
+          color: var(--gray);
+          margin-top: 0.3rem;
+        }
+        .feedback {
+          margin-top: 2rem;
+        }
+        .feedback-header {
+          font-size: 1.2rem;
+          font-weight: 500;
+          color: var(--dark);
+          margin-bottom: 1rem;
+          position: relative;
+          padding-left: 1rem;
+        }
+        .feedback-header::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          height: 100%;
+          width: 4px;
+          background-color: var(--primary);
+          border-radius: 2px;
+        }
+        .feedback-items {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+        }
+        .feedback-item {
+          background-color: var(--light);
+          padding: 1.5rem;
+          border-radius: 12px;
+          transition: var(--transition);
+        }
+        .feedback-item:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+        }
+        .feedback-item-score {
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 1rem;
+          font-weight: 700;
+          font-size: 1.2rem;
+          color: white;
+          position: relative;
+        }
+        .feedback-item-title {
+          font-weight: 500;
+          font-size: 1rem;
+          margin-bottom: 0.5rem;
+          color: var(--dark);
+        }
+        .feedback-item-desc {
+          font-size: 0.85rem;
+          color: var(--gray);
+        }
+        .score-1, .score-2, .score-3 { background-color: #f94144; }
+        .score-4, .score-5 { background-color: #f9844a; }
+        .score-6, .score-7 { background-color: #f9c74f; }
+        .score-8 { background-color: #90be6d; }
+        .score-9, .score-10 { background-color: #43aa8b; }
+        .buttons {
+          display: flex;
+          justify-content: center;
+          gap: 1rem;
+          margin-top: 2rem;
+        }
+        .btn-secondary {
+          background: var(--white);
+          color: var(--primary);
+          border: 1px solid var(--primary-light);
+          box-shadow: none;
+        }
+        .btn-secondary:hover {
+          background: rgba(67, 97, 238, 0.05);
+          box-shadow: 0 4px 10px rgba(67, 97, 238, 0.1);
+        }
+        .btn-danger {
+          background: linear-gradient(90deg, #f72585 0%, #ff5292 100%);
+          box-shadow: 0 4px 15px rgba(247, 37, 133, 0.3);
+        }
+        .btn-danger:hover {
+          box-shadow: 0 8px 20px rgba(247, 37, 133, 0.4);
+        }
+
+        /* 히스토리 섹션 스타일 */
+        .history-section {
+          margin-top: 3rem;
+        }
+        .history-title {
+          font-size: 1.5rem;
+          font-weight: 600;
+          color: var(--dark);
+          margin-bottom: 1.5rem;
+          text-align: center;
+        }
+        .history-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 2rem;
+        }
+        .history-table th,
+        .history-table td {
+          padding: 1rem;
+          text-align: left;
+          border-bottom: 1px solid rgba(108, 117, 125, 0.2);
+        }
+        .history-table th {
+          font-weight: 600;
+          color: var(--dark);
+          background-color: rgba(67, 97, 238, 0.05);
+        }
+        .history-table tr:hover {
+          background-color: rgba(67, 97, 238, 0.03);
+        }
+        .document-name {
+          display: flex;
+          align-items: center;
+        }
+        .document-name i {
+          margin-right: 8px;
+          color: var(--primary);
+        }
+        .grade-badge {
+          display: inline-block;
+          padding: 0.25rem 0.75rem;
+          border-radius: 50px;
+          font-weight: 600;
+          font-size: 0.8rem;
+          color: white;
+          text-align: center;
+        }
+        .grade-a { background-color: #4cc9f0; }
+        .grade-b { background-color: #43aa8b; }
+        .grade-c { background-color: #f9c74f; }
+        .grade-d { background-color: #f94144; }
+        .action-btn {
+          background: none;
+          border: none;
+          color: var(--primary);
+          cursor: pointer;
+          margin-right: 5px;
+          font-size: 0.9rem;
+          transition: var(--transition);
+        }
+        .action-btn:hover {
+          color: var(--primary-dark);
+        }
+        .action-btn.delete {
+          color: var(--secondary);
+        }
+        .action-btn.delete:hover {
+          color: #d61e69;
+        }
+        .empty-history {
+          text-align: center;
+          padding: 3rem 0;
+          color: var(--gray);
+        }
+        .tab-container {
+          display: flex;
+          justify-content: center;
+          margin-bottom: 2rem;
+        }
+        .tab {
+          padding: 0.8rem 1.5rem;
+          background-color: var(--white);
+          border-radius: 30px;
+          margin: 0 0.5rem;
+          cursor: pointer;
+          transition: var(--transition);
+          font-weight: 500;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        .tab.active {
+          background-color: var(--primary);
+          color: var(--white);
+          box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+        }
+
+        @media (max-width: 768px) {
+          .container {
+            padding: 1rem;
+          }
+          .card {
+            padding: 1.5rem;
+          }
+          .upload-box {
+            padding: 2rem 1rem;
+          }
+          .feedback-items {
+            grid-template-columns: 1fr;
+          }
+          .buttons {
+            flex-direction: column;
+          }
+          .btn {
+            max-width: 100%;
+          }
+          .history-table {
+            font-size: 0.85rem;
+          }
+          .history-table th,
+          .history-table td {
+            padding: 0.8rem 0.5rem;
+          }
+          .tab {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+          }
+        }
+    </style>
+</head>
+<body>
+<!-- 상단 네비게이션 바 -->
+<nav class="top-nav">
+    <a th:href="@{/}" class="brand">SECURITY</a>
+    <div class="right-menu">
+        <div class="nav-links">
+            <a th:href="@{/history}">히스토리</a>
+        </div>
+
+        <div class="user-name">
+            <span th:text="${loginMember.name}"></span> 님 환영합니다.&nbsp;&nbsp;&nbsp;
+        </div>
+
+        <div class="nav-links">
+            <a th:href="@{/logout}"><i class="fas fa-sign-out-alt"></i> 로그아웃</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <header>
+        <h1>문서 보안 등급 평가 시스템</h1>
+        <p class="description">문서를 업로드하면 AI가 내용을 분석하여 보안등급과 그 이유를 평가해 드립니다.</p>
+    </header>
+
+    <form th:action method="post" enctype="multipart/form-data">
+        <div class="card upload-section" id="uploadSection">
+
+            <label for="fileInput">
+                <div class="upload-box" id="uploadBox">
+                    <div class="upload-icon">
+                        <i class="fas fa-file-upload"></i>
+                    </div>
+                    <p class="upload-text">문서를 드래그하여 놓거나, 클릭하여 파일을 선택하세요</p>
+                    <p class="upload-text-sub">PDF, DOCX, TXT 형식 지원</p>
+                </div>
+            </label>
+
+            <div class="file-info" id="fileInfo">
+                <div class="file-name"><i class="fas fa-file-alt"></i> <span id="fileName"></span></div>
+                <button class="file-clear" id="fileClear"><i class="fas fa-times"></i></button>
+            </div>
+
+            <input type="file" id="fileInput" name="file" class="hidden-input" accept=".pdf,.docx,.txt">
+
+            <button type="submit" class="btn" id="gradeBtn">
+                <i class="fas fa-search"></i> 등급 평가하기
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const fileNameSpan = document.getElementById('fileName');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileClear = document.getElementById('fileClear');
+    const gradeBtn = document.getElementById('gradeBtn');
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            fileNameSpan.textContent = Array.from(fileInput.files).map(f => f.name).join(', ');
+            fileInfo.style.display = 'block';
+            gradeBtn.disabled = false;
+        } else {
+            fileInfo.style.display = 'none';
+            gradeBtn.disabled = true;
+        }
+    });
+
+    fileClear.addEventListener('click', () => {
+        fileInput.value = '';
+        fileInfo.style.display = 'none';
+        gradeBtn.disabled = true;
+    });
+</script>
+

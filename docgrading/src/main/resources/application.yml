@@ -1,0 +1,31 @@
+spring:
+  datasource:
+    url: jdbc:h2:tcp://localhost/~/docgrading
+    username: admin
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    # create, update, validate, none, delete ...
+    properties:
+    #dialect: org.hibernate.dialect.H2Dialect
+      hibernate:
+        use_sql_comments: true
+      # show_sql: true # System.out 에 하이버네이트 실행 SQL을 분리해서 남김
+        format_sql: true #  logger를 통해 하이버네이트 실행 SQL을 남김
+
+  servlet:
+    multipart:
+      max-file-size: 300MB
+      max-request-size: 300MB
+
+logging.level:
+  org.hibernate.SQL: debug
+ # org.apache.coyote.http11: trace
+  # 쿼리 파라미터 로그 남기기
+  # org.hibernate.type: trace #스프링 부트 2.x, hibernate5
+  # org.hibernate.orm.jdbc.bind: trace #스프링 부트 3.x, hibernate6
+
+file.dir: /home/hcc/DS/save_doc/ #C:/Users/배상목/Desktop/savedDocs/
