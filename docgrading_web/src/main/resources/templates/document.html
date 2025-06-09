@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>문서 상세 정보 - 문서 등급 평가 시스템</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+        :root {
+          --primary: #4361ee;
+          --primary-light: #4895ef;
+          --primary-dark: #3a0ca3;
+          --secondary: #f72585;
+          --light: #f8f9fa;
+          --dark: #212529;
+          --gray: #6c757d;
+          --success: #4cc9f0;
+          --white: #ffffff;
+          --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+          --transition: all 0.3s ease;
+        }
+
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+          font-family: 'Noto Sans KR', sans-serif;
+        }
+
+        body {
+          background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+          color: var(--dark);
+          line-height: 1.6;
+          min-height: 100vh;
+          padding: 2rem 0;
+        }
+
+        /* 상단 네비게이션 바 스타일 */
+        nav.top-nav {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1rem 2rem;
+          background-color: var(--white);
+          box-shadow: var(--shadow);
+          margin-bottom: 2rem;
+        }
+        nav.top-nav .brand {
+          text-decoration: none;
+          color: var(--primary-dark);
+          font-weight: 700;
+          font-size: 1.5rem;
+        }
+        .right-menu {
+          display: flex;
+          align-items: center;
+        }
+        .nav-links a {
+          text-decoration: none;
+          color: var(--primary-dark);
+          font-weight: 500;
+          font-size: 1.1rem;
+          margin-right: 1rem;
+        }
+        /* 사용자 프로필 스타일 */
+        .user-profile {
+          display: flex;
+          align-items: center;
+          cursor: pointer;
+          position: relative;
+        }
+        .user-avatar {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background-color: var(--primary-light);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--white);
+          font-weight: 700;
+          margin-right: 10px;
+        }
+        .user-name {
+          font-weight: 500;
+          color: var(--dark);
+        }
+        .user-menu {
+          display: none;
+          position: absolute;
+          top: 120%;
+          right: 0;
+          background: var(--white);
+          box-shadow: var(--shadow);
+          border-radius: 4px;
+          overflow: hidden;
+          z-index: 100;
+          min-width: 180px;
+        }
+        .user-profile:hover .user-menu {
+          display: block;
+        }
+        .user-menu a {
+          display: block;
+          padding: 0.75rem 1rem;
+          text-decoration: none;
+          color: var(--primary-dark);
+          transition: var(--transition);
+          white-space: nowrap;
+        }
+        .user-menu a:hover {
+          background: rgba(67, 97, 238, 0.1);
+        }
+
+        .container {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 0 2rem;
+        }
+
+        .breadcrumb {
+          display: flex;
+          align-items: center;
+          margin-bottom: 2rem;
+          font-size: 0.95rem;
+        }
+        .breadcrumb a {
+          color: var(--primary);
+          text-decoration: none;
+          transition: var(--transition);
+        }
+        .breadcrumb a:hover {
+          color: var(--primary-dark);
+        }
+        .breadcrumb i {
+          margin: 0 0.5rem;
+          color: var(--gray);
+          font-size: 0.8rem;
+        }
+        .breadcrumb span {
+          color: var(--gray);
+        }
+
+        .document-detail {
+          background-color: var(--white);
+          border-radius: 16px;
+          box-shadow: var(--shadow);
+          overflow: hidden;
+          margin-bottom: 2rem;
+          position: relative;
+        }
+        .document-detail::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 5px;
+          background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+
+        .document-content {
+          display: flex;
+          flex-direction: row;
+        }
+
+        .document-preview {
+          flex: 0 0 40%;
+          background-color: #f1f3f9;
+          padding: 2rem;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          min-height: 600px;
+          border-right: 1px solid rgba(108, 117, 125, 0.15);
+        }
+
+        .document-image-container {
+          width: 100%;
+          max-width: 350px;
+          background-color: white;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+          border-radius: 8px;
+          overflow: hidden;
+          position: relative;
+          margin-bottom: 1.5rem;
+        }
+
+        .pdf-viewer {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            box-shadow: var(--shadow);
+        }
+
+        .document-image {
+          width: 100%;
+          height: 480px;
+          object-fit: cover;
+          display: block;
+        }
+
+        .document-type {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          background-color: rgba(255, 255, 255, 0.9);
+          padding: 0.5rem;
+          border-radius: 5px;
+          font-size: 1.5rem;
+          color: var(--primary-dark);
+        }
+
+        .preview-controls {
+          display: flex;
+          justify-content: center;
+          gap: 1rem;
+          width: 100%;
+        }
+
+        .preview-btn {
+          padding: 0.7rem 1.3rem;
+          background-color: var(--white);
+          border: 1px solid var(--primary-light);
+          border-radius: 50px;
+          color: var(--primary-dark);
+          font-weight: 500;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          cursor: pointer;
+          transition: var(--transition);
+          box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .preview-btn:hover {
+          background-color: rgba(67, 97, 238, 0.05);
+          transform: translateY(-2px);
+          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .document-info {
+          flex: 0 0 60%;
+          padding: 2.5rem;
+        }
+
+        .document-header {
+          margin-bottom: 2rem;
+        }
+
+        .document-title {
+          font-size: 1.8rem;
+          font-weight: 700;
+          color: var(--dark);
+          margin-bottom: 0.5rem;
+        }
+
+        .document-meta {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 1.5rem;
+          margin-bottom: 1rem;
+          color: var(--gray);
+          font-size: 0.95rem;
+        }
+
+        .meta-item {
+          display: flex;
+          align-items: center;
+        }
+
+        .meta-item i {
+          margin-right: 0.5rem;
+          color: var(--primary);
+        }
+
+        .security-grade {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.5rem 1rem;
+          border-radius: 50px;
+          font-weight: 600;
+          color: white;
+          font-size: 0.9rem;
+          margin-top: 0.5rem;
+        }
+
+        .grade-a {
+          background-color: #4cc9f0;
+        }
+
+        .grade-b {
+          background-color: #43aa8b;
+        }
+
+        .grade-c {
+          background-color: #f9c74f;
+        }
+
+        .grade-d {
+          background-color: #f94144;
+        }
+
+        .document-section {
+          margin-bottom: 2rem;
+        }
+
+        .section-title {
+          font-size: 1.2rem;
+          font-weight: 600;
+          color: var(--dark);
+          margin-bottom: 1rem;
+          position: relative;
+          padding-left: 1rem;
+        }
+
+        .section-title::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          height: 100%;
+          width: 4px;
+          background-color: var(--primary);
+          border-radius: 2px;
+        }
+
+        .security-details {
+          background-color: var(--light);
+          padding: 1.5rem;
+          border-radius: 12px;
+        }
+
+        .security-item {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 1rem;
+          padding-bottom: 1rem;
+          border-bottom: 1px solid rgba(108, 117, 125, 0.15);
+        }
+
+        .security-item:last-child {
+          margin-bottom: 0;
+          padding-bottom: 0;
+          border-bottom: none;
+        }
+
+        .security-label {
+          font-weight: 500;
+          color: var(--dark);
+        }
+
+        .security-value {
+          background-color: var(--white);
+          padding: 0.3rem 0.8rem;
+          border-radius: 50px;
+          font-weight: 600;
+          font-size: 0.9rem;
+        }
+
+        .value-high {
+          color: #4cc9f0;
+        }
+
+        .value-medium {
+          color: #f9c74f;
+        }
+
+        .value-low {
+          color: #f94144;
+        }
+
+        .document-description {
+          line-height: 1.8;
+          color: var(--gray);
+        }
+
+        .tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          margin-top: 1rem;
+        }
+
+        .tag {
+          background-color: rgba(67, 97, 238, 0.1);
+          color: var(--primary-dark);
+          padding: 0.3rem 0.8rem;
+          border-radius: 50px;
+          font-size: 0.85rem;
+          font-weight: 500;
+        }
+
+        .action-buttons {
+          display: flex;
+          gap: 1rem;
+          margin-top: 2rem;
+        }
+
+        .btn {
+          padding: 0.9rem 2rem;
+          border-radius: 50px;
+          cursor: pointer;
+          font-size: 1rem;
+          font-weight: 500;
+          letter-spacing: 0.5px;
+          transition: var(--transition);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: none;
+        }
+
+        .btn i {
+          margin-right: 0.5rem;
+        }
+
+        .btn-primary {
+          background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+          color: white;
+          box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+        }
+
+        .btn-primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(67, 97, 238, 0.4);
+        }
+
+        .btn-secondary {
+          background: var(--white);
+          color: var(--primary);
+          border: 1px solid var(--primary-light);
+          box-shadow: none;
+        }
+
+        .btn-secondary:hover {
+          background: rgba(67, 97, 238, 0.05);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 10px rgba(67, 97, 238, 0.1);
+        }
+
+        .btn-danger {
+          background: linear-gradient(90deg, #f72585 0%, #ff5292 100%);
+          color: white;
+          box-shadow: 0 4px 15px rgba(247, 37, 133, 0.3);
+        }
+
+        .btn-danger:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(247, 37, 133, 0.4);
+        }
+
+        .share-section {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .share-input {
+          flex: 1;
+          padding: 0.8rem 1rem;
+          border: 1px solid #e2e8f0;
+          border-radius: 50px;
+          font-size: 0.9rem;
+          color: var(--gray);
+          background-color: var(--light);
+        }
+
+        .related-documents {
+          margin-top: 3rem;
+        }
+
+        .related-title {
+          font-size: 1.5rem;
+          font-weight: 600;
+          margin-bottom: 1.5rem;
+          text-align: center;
+          color: var(--dark);
+        }
+
+        .related-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+          gap: 1.5rem;
+        }
+
+        .related-item {
+          background-color: var(--white);
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: var(--shadow);
+          transition: var(--transition);
+        }
+
+        .related-item:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .related-image {
+          height: 160px;
+          overflow: hidden;
+        }
+
+        .related-image img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          transition: var(--transition);
+        }
+
+        .related-item:hover .related-image img {
+          transform: scale(1.05);
+        }
+
+        .related-info {
+          padding: 1.2rem;
+        }
+
+        .related-name {
+          font-weight: 600;
+          font-size: 1rem;
+          margin-bottom: 0.5rem;
+          color: var(--dark);
+          display: -webkit-box;
+          -webkit-line-clamp: 1;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .related-date {
+          font-size: 0.85rem;
+          color: var(--gray);
+          margin-bottom: 0.8rem;
+        }
+
+        .related-grade {
+          display: inline-block;
+          padding: 0.2rem 0.7rem;
+          border-radius: 50px;
+          font-weight: 600;
+          font-size: 0.8rem;
+          color: white;
+        }
+
+        @media (max-width: 992px) {
+          .document-content {
+            flex-direction: column;
+          }
+
+          .document-preview, .document-info {
+            flex: 0 0 100%;
+          }
+
+          .document-preview {
+            border-right: none;
+            border-bottom: 1px solid rgba(108, 117, 125, 0.15);
+            min-height: auto;
+            padding-bottom: 2rem;
+          }
+
+          .document-image-container {
+            max-width: 300px;
+          }
+
+          .document-image {
+            height: 400px;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .container {
+            padding: 0 1rem;
+          }
+
+          .document-info {
+            padding: 1.5rem;
+          }
+
+          .document-title {
+            font-size: 1.5rem;
+          }
+
+          .document-meta {
+            gap: 1rem;
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .action-buttons {
+            flex-direction: column;
+          }
+
+          .btn {
+            width: 100%;
+          }
+
+          .share-section {
+            flex-direction: column;
+          }
+
+          .share-input {
+            width: 100%;
+          }
+
+          .related-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+    </style>
+</head>
+<body>
+<!-- 상단 네비게이션 바 -->
+<nav class="top-nav">
+    <a th:href="@{/}" class="brand">SECURITY</a>
+    <div class="right-menu">
+        <div class="nav-links">
+            <a th:href="@{/history}">히스토리</a>
+        </div>
+
+        <!--div class="user-name">
+             <span th:text="${member.name}"></span> 님 환영합니다.&nbsp;&nbsp;&nbsp;
+        </div-->
+
+        <div class="nav-links">
+            <a th:href="@{/logout}"><i class="fas fa-sign-out-alt"></i> 로그아웃</a>
+        </div>
+
+    </div>
+</nav>
+
+<div class="container">
+    <!-- 브레드크럼 네비게이션 -->
+    <div class="breadcrumb">
+        <a th:href="@{/}">홈</a>
+        <i class="fas fa-chevron-right"></i>
+        <a th:href="@{/history}">문서 히스토리</a>
+        <i class="fas fa-chevron-right"></i>
+        <span th:text="${document.getAttachFile().getUploadFilename()}"></span>
+    </div>
+
+    <!-- 문서 상세 정보 카드 -->
+    <div class="document-detail">
+        <div class="document-content">
+
+            <!-- 왼쪽: 문서 이미지 및 미리보기 -->
+            <div class="document-preview">
+                <div class="document-image-container">
+                    <embed th:src="@{'/document/' + ${document.getId()} + '/pdf'}"
+                           type="application/pdf"
+                           width="350"
+                           height="480"
+                           class="document-pdf-preview">
+                </div>
+            </div>
+
+            <!-- 오른쪽: 문서 정보 -->
+            <div class="document-info">
+                <div class="document-header">
+                    <h1 class="document-title">
+                        <span th:text="${document.getAttachFile().getUploadFilename()}"></span>
+                    </h1>
+
+                    <div class="document-meta">
+                        <div class="meta-item">
+                            <i class="fas fa-calendar-alt"></i>
+                            업로드 날짜:&nbsp;<span th:text="${document.getUploadDate().toLocalDate()}"></span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-user"></i>
+                            업로더:&nbsp;<span th:text="${document.getMember().getName()}"></span>
+                        </div>
+                    </div>
+
+                    <div class="security-grade grade-b">
+                        <i class="fas fa-shield-alt"></i>
+                        보안 등급:&nbsp;<span th:text="${document.getGrade()}"></span>
+                    </div>
+                </div>
+
+                <div class="document-section">
+                    <h2 class="section-title">보안 세부 정보</h2>
+                    <div class="security-details">
+                        <div class="security-item">
+                            <div class="security-label">샘플링 된 페이지</div>
+                            <div class="security-value value-medium">
+                                <span th:each="sampledPage: ${document.getSampledPages()}">
+                                    <span th:text="${sampledPage}"></span>
+                                </span>
+                                <span th:if="${document.getSampledPages.isEmpty()}">없음</span>
+                            </div>
+                        </div>
+                        <div class="security-item">
+                            <div class="security-label">1급 페이지</div>
+                            <div class="security-value value-high">
+                                <span th:each="gradeOnePage: ${document.getGradeOnePages()}">
+                                    <span th:text="${gradeOnePage}"></span>
+                                </span>
+                                <span th:if="${document.getGradeOnePages.isEmpty()}">없음</span>
+                            </div>
+                        </div>
+                        <div class="security-item">
+                            <div class="security-label">2급 페이지</div>
+                            <div class="security-value value-high">
+                                <span th:each="gradeTwoPage: ${document.getGradeTwoPages()}">
+                                    <span th:text="${gradeTwoPage}"></span>
+                                </span>
+                                <span th:if="${document.getGradeTwoPages.isEmpty()}">없음</span>
+                            </div>
+                        </div>
+                        <div class="security-item">
+                            <div class="security-label">3급 페이지</div>
+                            <div class="security-value value-high">
+                                <span th:each="gradeThreePage: ${document.getGradeThreePages()}">
+                                    <span th:text="${gradeThreePage}"></span>
+                                </span>
+                                <span th:if="${document.getGradeThreePages.isEmpty()}">없음</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="document-section">
+                    <h2 class="section-title">문서 설명</h2>
+                    <p class="document-reason">
+                        <span th:text="${document.getReason()}"></span>
+                    </p>
+                    <div class="tags">
+                        <div class="tag" th:each="keyword: ${document.getKeywords()}">
+                               <span th:text="${keyword}"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary">
+                        <i class="fas fa-edit"></i> 문서 수정
+                    </button>
+                    <button class="btn btn-danger">
+                        <i class="fas fa-trash"></i> 삭제
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>
